@@ -134,6 +134,9 @@ def _extract_docx_text(content: bytes) -> str:
 
 def _parse_markdown_structure(md: str, fallback_title: str = "Untitled report") -> ParsedReport:
     """Walk the markdown, classify H2 sections, extract references."""
+    # Strip UTF-8 BOM (PowerShell's default Out-File encoding adds one)
+    if md.startswith("﻿"):
+        md = md[1:]
     md = md.replace("\r\n", "\n")
     lines = md.split("\n")
 

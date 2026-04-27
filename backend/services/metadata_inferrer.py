@@ -47,15 +47,23 @@ _INFER_PROMPT = """You are a senior McKinsey engagement manager. A deep research
 </branches_detected>
 </report>
 
-Output a SINGLE JSON block (no preamble, no commentary) with EXACTLY these fields:
+Output a SINGLE JSON block (no preamble, no commentary) with EXACTLY these 7 fields. ALL FIELDS ARE REQUIRED — do not output empty strings or null unless the rule below explicitly allows it.
 
-- `central_question`: the decision-oriented question this deck must answer. Specific, with a subject + verb + decision context. Phrased like a question. Examples: "Should we enter the Brazilian B2B SaaS market in 2026?" or "How should we restructure operations to reduce costs by 25% by 2027?"
-- `desired_decision`: the concrete decision the audience must take after reading. Action-oriented. Examples: "Approve a $15M phase-1 investment" or "Authorize the launch of pilots in Sao Paulo and Rio".
-- `audience`: ONE of [board, client, working_team, steering] — best inference from report tone and stakes.
-- `deck_type`: ONE of [strategic, diagnostic, market_entry, due_diligence, transformation, progress_update, implementation].
-- `engagement_template_id`: ONE of [strategic_assessment, commercial_due_diligence, performance_improvement, transformation, market_entry] OR null if none clearly fits. Map: market entry → market_entry; M&A / target evaluation → commercial_due_diligence; cost reduction / efficiency → performance_improvement; digital / org change → transformation; everything else → strategic_assessment.
-- `hypothesis`: ONE-sentence "answer first" governing thought, derived from the conclusions section. The deck's executive summary will lead with this. Example: "Brazilian SaaS entry is attractive if we partner with a local distributor to compress GTM by 9 months."
-- `output_language`: ISO code (es, en, pt, fr, de, it) — detect from the report content.
+- `central_question` (string, required): the COMPLETE decision-oriented question this deck must answer. Specific, with subject + verb + decision context, ending with `?`. Use the same language as the report. Examples: `"Should we enter the Brazilian B2B SaaS market in 2026 with a $15M phase-1 investment?"` or `"¿Cómo reducir costos operativos 25% para 2027 manteniendo SLA?"`
+- `desired_decision` (string, required): the CONCRETE decision the audience must take. Action-verb starter (Approve / Authorize / Reject / Defer). Examples: `"Approve a $15M phase-1 investment in São Paulo operations"` or `"Authorize Phase 2 detailed design for the 3 prioritized initiatives"`
+- `audience` (string, required): ONE of [board, client, working_team, steering] — pick by stakes and tone (board = strategic + investment; client = external recommendation; working_team = implementation detail; steering = governance review)
+- `deck_type` (string, required): ONE of [strategic, diagnostic, market_entry, due_diligence, transformation, progress_update, implementation]
+- `engagement_template_id` (string, required — NEVER null when the report has a clear theme): pick the BEST FIT from [strategic_assessment, commercial_due_diligence, performance_improvement, transformation, market_entry]. Mapping rules:
+    - Report mentions "entry", "TAM", "go-to-market", "competitors", "expansion" → `market_entry`
+    - Report mentions "due diligence", "target", "M&A", "acquisition", "valuation" → `commercial_due_diligence`
+    - Report mentions "cost reduction", "efficiency", "performance gap", "operational improvement" → `performance_improvement`
+    - Report mentions "digital", "transformation", "org change", "future state", "roadmap" → `transformation`
+    - Anything else → `strategic_assessment`
+- `hypothesis` (string, required): the ONE-SENTENCE answer-first governing thought. Pull from Conclusiones / Recomendaciones. Specific verb + condition + payoff. Example: `"Brazilian SaaS entry is attractive if we partner with a local BPO to compress go-to-market by 9 months and limit downside FX exposure."`
+- `output_language` (string, required): ISO code matching the LANGUAGE OF THE REPORT BODY (not English by default). Inspect the executive summary and conclusions text:
+    - Spanish words like "el", "la", "del", "que", "para", "mercado", "podemos" → `"es"`
+    - English → `"en"`. Portuguese → `"pt"`. French → `"fr"`. German → `"de"`.
+    - When in doubt, look at the H2 headings: `## Resumen Ejecutivo` / `## Conclusiones` → Spanish.
 
 ```json
 {{"central_question": "...", "desired_decision": "...", "audience": "...", "deck_type": "...", "engagement_template_id": "...", "hypothesis": "...", "output_language": "..."}}
@@ -88,10 +96,11 @@ async def infer_metadata(report: ParsedReport) -> InferredMetadata:
 
     try:
         response = await complete(
-            system_prompt="You are a senior McKinsey engagement manager. You output strict JSON when asked.",
+            system_prompt="You are a senior McKinsey engagement manager. You output strict JSON when asked, with ALL requested fields filled.",
             user_prompt=user_prompt,
             task="infer_metadata",   # → routes to model_powerful (gemini-3.1-pro)
-            max_tokens=900,
+            max_tokens=1500,
+            temperature=0.3,
         )
     except Exception as e:
         print(f"[metadata_inferrer] LLM call failed: {e}")
