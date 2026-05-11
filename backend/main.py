@@ -18,7 +18,7 @@ from .config import get_settings
 from .database import init_db
 from .routers import (
     projects, uploads, chat, slides, decks, validation,
-    export, templates, sharpen, import_report,
+    export, templates, sharpen, import_report, deepresearch_decks,
 )
 
 settings = get_settings()
@@ -59,6 +59,7 @@ app.include_router(export.router, prefix="/api/v1")
 app.include_router(templates.router, prefix="/api/v1")
 app.include_router(sharpen.router, prefix="/api/v1")
 app.include_router(import_report.router, prefix="/api/v1")
+app.include_router(deepresearch_decks.router, prefix="/api/v1")
 
 
 @app.get("/api/health")

@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     brave_api_key: str = ""
     search_provider: str = "auto"  # "brave" | "tavily" | "auto"
 
+    # Image search providers (DeepResearch-style slide image_query lookup).
+    # Both optional — if a key is unset the corresponding provider just returns []
+    # and slides render without images instead of crashing the generation flow.
+    pexels_api_key: str = ""
+    unsplash_access_key: str = ""
+
     # Database — under the Railway volume in prod, under backend/data locally.
     database_path: str = str(_DATA_BASE / "data" / "mckinsey_ppt.db")
 

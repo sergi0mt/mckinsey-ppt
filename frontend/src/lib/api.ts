@@ -187,4 +187,37 @@ export const api = {
       return res.json();
     },
   },
+
+  deepresearchDecks: {
+    /** Start an SSE stream that generates a DeepResearch-style slide deck.
+     *  Returns the Response — caller is responsible for reading the body via
+     *  a TextDecoder to parse `data: {...}\n\n` events.
+     *
+     *  Why fetch() instead of EventSource: we need POST + a JSON body
+     *  (slide_count, image_provider, options). EventSource is GET-only. */
+    generate: (
+      projectId: string,
+      body: import("./types").GeneratePresentationBody,
+    ): Promise<Response> =>
+      fetch(`${BASE_URL}/projects/${projectId}/deepresearch-deck/generate-with-meta`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+        body: JSON.stringify(body),
+      }),
+
+    /** Get the latest generated deck. 404 if none yet. */
+    get: (projectId: string) =>
+      request<import("./types").DeepResearchDeck>(`/projects/${projectId}/deepresearch-deck`),
+
+    /** Force-download the deck JSON. */
+    downloadJsonUrl: (projectId: string) =>
+      `${BASE_URL}/projects/${projectId}/deepresearch-deck/download`,
+
+    /** Trigger PPTX export. Returns { filename, filepath, download_url }. */
+    exportPptx: (projectId: string) =>
+      request<{ filename: string; filepath: string; download_url: string }>(
+        `/projects/${projectId}/deepresearch-deck/export-pptx`,
+        { method: "POST" },
+      ),
+  },
 };

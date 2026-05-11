@@ -101,18 +101,17 @@ export default function ImportConfirmPage() {
       .finally(() => setLoading(false));
   }, [projectId]);
 
-  const handleConfirm = async () => {
-    if (!form || !imported) return;
-    setSaving(true);
+  /** Persist project+session updates from the confirm form.
+   *  Returns true on success; the caller decides where to navigate. */
+  const persistForm = async (): Promise<boolean> => {
+    if (!form || !imported) return false;
     try {
-      // 1. Update project metadata
       await api.projects.update(projectId, {
         name: form.name,
         audience: form.audience,
         deck_type: form.deck_type,
         engagement_type: form.engagement_template_id || "",
       });
-      // 2. Update session stage_data (merge)
       await api.sessions.updateStageData(imported.session_id, {
         central_question: form.central_question,
         desired_decision: form.desired_decision,
@@ -122,12 +121,35 @@ export default function ImportConfirmPage() {
         output_language: form.output_language,
         mece_template: form.engagement_template_id || "generic",
       });
-      // 3. Clear cache + go
       try { sessionStorage.removeItem(`mckinsey-ppt:import:${projectId}`); } catch {}
-      toast.success("Engagement listo · abriendo workspace");
-      router.push(`/v2/engagements/${projectId}`);
+      return true;
     } catch (err) {
       toast.error("Save failed: " + (err instanceof Error ? err.message : "?"));
+      return false;
+    }
+  };
+
+  /** McKinsey path: opens the chat workspace (Stage 3+4 → PPTX) */
+  const handleConfirm = async () => {
+    setSaving(true);
+    const ok = await persistForm();
+    if (ok) {
+      toast.success("Engagement listo · abriendo workspace");
+      router.push(`/v2/engagements/${projectId}`);
+    } else {
+      setSaving(false);
+    }
+  };
+
+  /** DeepResearch path: skips the chat workspace, goes straight to the
+   *  one-shot generation form + HTML viewer. */
+  const handleDeepResearch = async () => {
+    setSaving(true);
+    const ok = await persistForm();
+    if (ok) {
+      toast.success("Engagement listo · abriendo DeepResearch deck");
+      router.push(`/v2/engagements/${projectId}/deepresearch`);
+    } else {
       setSaving(false);
     }
   };
@@ -321,8 +343,13 @@ export default function ImportConfirmPage() {
             )}
           </div>
 
+          {/* Deck style picker — explains the two output paths */}
+          <div className="mt-8 mb-2" style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: 1, textTransform: "uppercase", fontFamily: "var(--mono)" }}>
+            Generate as
+          </div>
+
           {/* Actions */}
-          <div className="mt-8 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <button
               onClick={handleDiscard}
               disabled={discarding}
@@ -343,27 +370,57 @@ export default function ImportConfirmPage() {
               Discard import
             </button>
 
-            <button
-              onClick={handleConfirm}
-              disabled={saving}
-              className="inline-flex items-center gap-2 transition-opacity hover:opacity-90"
-              style={{
-                background: "var(--ink)",
-                color: "var(--paper)",
-                border: "1px solid var(--ink)",
-                borderRadius: 6,
-                padding: "10px 18px",
-                fontSize: 14,
-                fontWeight: 500,
-                fontFamily: "var(--sans)",
-                cursor: saving ? "not-allowed" : "pointer",
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
-              {saving ? <Loader2 className="h-[14px] w-[14px] animate-spin" /> : null}
-              Confirm & open workspace
-              <ArrowRight className="h-[14px] w-[14px]" strokeWidth={1.5} />
-            </button>
+            <div className="flex gap-2.5 flex-wrap">
+              {/* DeepResearch path — visual HTML slides with palette + image_provider */}
+              <button
+                onClick={handleDeepResearch}
+                disabled={saving}
+                title="Form-driven generation with palette themes, layouts variados, image fetching. HTML viewer + JSON / PPTX export."
+                className="inline-flex items-center gap-2 transition-opacity hover:opacity-90"
+                style={{
+                  background: "var(--paper)",
+                  color: "var(--ink)",
+                  border: "1px solid var(--ink-2)",
+                  borderRadius: 6,
+                  padding: "10px 16px",
+                  fontSize: 13.5,
+                  fontWeight: 500,
+                  fontFamily: "var(--sans)",
+                  cursor: saving ? "not-allowed" : "pointer",
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? <Loader2 className="h-[13px] w-[13px] animate-spin" /> : null}
+                <span style={{ fontFamily: "var(--serif)", fontSize: 14 }}>DeepResearch</span>
+                <span style={{ fontSize: 11, color: "var(--ink-3)" }}>· slides JSON + viewer</span>
+                <ArrowRight className="h-[13px] w-[13px]" strokeWidth={1.5} />
+              </button>
+
+              {/* McKinsey path — the existing chat workspace → PPTX McKinsey-validated */}
+              <button
+                onClick={handleConfirm}
+                disabled={saving}
+                title="Workspace con chat: Stage 3 (storyline + slides) + Stage 4 (refine) → PPTX McKinsey-validated (action titles, charts, validators)."
+                className="inline-flex items-center gap-2 transition-opacity hover:opacity-90"
+                style={{
+                  background: "var(--ink)",
+                  color: "var(--paper)",
+                  border: "1px solid var(--ink)",
+                  borderRadius: 6,
+                  padding: "10px 18px",
+                  fontSize: 13.5,
+                  fontWeight: 500,
+                  fontFamily: "var(--sans)",
+                  cursor: saving ? "not-allowed" : "pointer",
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
+                {saving ? <Loader2 className="h-[14px] w-[14px] animate-spin" /> : null}
+                <span style={{ fontFamily: "var(--serif)", fontSize: 14 }}>McKinsey deck</span>
+                <span style={{ fontSize: 11, opacity: 0.7 }}>· chat + PPTX</span>
+                <ArrowRight className="h-[14px] w-[14px]" strokeWidth={1.5} />
+              </button>
+            </div>
           </div>
         </div>
       </div>

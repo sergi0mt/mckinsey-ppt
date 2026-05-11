@@ -238,6 +238,90 @@ export interface SharpenChart {
   source: string;
 }
 
+// ── DeepResearch-style slide deck (port of /presentation endpoint) ──
+
+export type SlideLayout =
+  | "title" | "key_insight" | "bullets" | "data" | "quote"
+  | "comparison" | "image_right" | "image_left" | "full_image"
+  | "stats_grid" | "timeline" | "swot_grid" | "process_flow"
+  | "before_after" | "conclusion";
+
+/** Single slide in the deepresearch-style JSON deck.
+ *  `content` can be flat strings OR nested string-arrays — depends on layout
+ *  (e.g. comparison/stats_grid use nested [["A","value"], ["B","value"]]). */
+export interface DeepResearchSlide {
+  index: number;
+  title: string;
+  layout: SlideLayout | string;
+  content: (string | (string | number)[])[];
+  notes: string;
+  highlight: string;
+  image_query: string;
+  image_url: string;
+  accent_color: string;
+}
+
+export interface PresentationPalette {
+  bg: string;
+  text: string;
+  text_secondary?: string;
+  heading?: string;
+  accent1: string;
+  accent2: string;
+  accent3?: string;
+  accent4?: string;
+  border?: string;
+  card_bg?: string;
+  card_border?: string;
+  highlight_bg?: string;
+  gradient_start?: string;
+  gradient_end?: string;
+  badge_bg?: string;
+  badge_text?: string;
+  kpi_text?: string;
+  success?: string;
+  warning?: string;
+  error?: string;
+  font_heading?: string;
+  font_body?: string;
+  [k: string]: string | undefined;
+}
+
+export interface PresentationOptions {
+  tone: "profesional" | "casual" | "técnico" | "académico" | "ejecutivo";
+  audience: "general" | "experto" | "ejecutivo" | "estudiante";
+  language?: string;
+  focus?: string;
+  style_id: string;                  // one of THEME_IDS
+  style_mode: "dark" | "light" | "dim" | "auto";
+}
+
+/** Body for POST /deepresearch-deck/generate-with-meta */
+export interface GeneratePresentationBody {
+  slide_count: number;               // 5-20
+  image_provider: "none" | "pexels" | "unsplash" | "ai";
+  options: PresentationOptions;
+}
+
+export interface DeepResearchDeck {
+  id: string;
+  project_id: string;
+  slides: DeepResearchSlide[];
+  options: PresentationOptions & { slide_count?: number };
+  palette: PresentationPalette;
+  presentation_prompt: string;
+  image_provider: string;
+  generated_at: string;
+}
+
+/** Display-order list of theme IDs surfaced in the frontend dropdown.
+ *  Mirrors backend.services.theme_palettes.THEME_PALETTES keys. */
+export const THEME_IDS = [
+  "default", "midnight", "nord", "rosepine", "dracula", "ocean",
+  "solarized", "futuristic", "classic", "alexandria", "bauhaus",
+  "carbon", "neontokyo", "terra", "sahara",
+] as const;
+
 // ── Import-report (deepresearch handoff) ──
 
 export interface InferredMetadata {
